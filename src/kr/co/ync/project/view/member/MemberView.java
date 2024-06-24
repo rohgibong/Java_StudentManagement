@@ -8,6 +8,7 @@ import kr.co.ync.project.util.Util;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -35,6 +36,7 @@ public class MemberView extends JFrame implements MemberListener {
     private JTable jTable;
     private JPanel instructionsPanel;
     private Long selectedMemberId;
+
 
     // 생성자 MemberView - 창의 제목을 설정
     public MemberView(String title) {
@@ -70,7 +72,7 @@ public class MemberView extends JFrame implements MemberListener {
                     if (response == JOptionPane.YES_OPTION) {
                         try {
                             if (!validateFields()) {
-                                return; // 필드 검증에 실패하면 작업 중단
+                                return;
                             }
 
                             Member member = new Member(
@@ -81,9 +83,9 @@ public class MemberView extends JFrame implements MemberListener {
                             );
                             Member savedMember = MemberController.getInstance().save(member);
                             if (savedMember != null) {
-                                loadMembers(); // 등록 후 테이블을 새로고침
-                                clearMemberFields(); // 입력 필드를 초기화
-                                resetToInitialState(); // 초기 상태로 돌아가기
+                                loadMembers();
+                                clearMemberFields();
+                                resetToInitialState();
                             }
                         } catch (Exception exception) {
                             exception.printStackTrace();
@@ -129,7 +131,7 @@ public class MemberView extends JFrame implements MemberListener {
                         }
 
                         if (!validateFields()) {
-                            return; // 필드 검증에 실패하면 작업 중단
+                            return;
                         }
 
                         if (isEmailDuplicate(fields[0].getText(), memberId)) {
@@ -152,9 +154,9 @@ public class MemberView extends JFrame implements MemberListener {
                         member.setId(memberId);
 
                         MemberController.getInstance().update(member);
-                        loadMembers(); // 수정 후 테이블을 새로고침
-                        clearMemberFields(); // 입력 필드를 초기화
-                        resetToInitialState(); // 수정 후 초기 상태로 돌아가기
+                        loadMembers();
+                        clearMemberFields();
+                        resetToInitialState();
                     } catch (Exception ex) {
                         ex.printStackTrace();
                         JOptionPane.showMessageDialog(null, "회원 정보를 수정하는 중 오류가 발생했습니다.", "오류", JOptionPane.ERROR_MESSAGE);
@@ -259,9 +261,9 @@ public class MemberView extends JFrame implements MemberListener {
                         }
 
                         MemberController.getInstance().delete(memberId);
-                        loadMembers(); // 삭제 후 테이블을 새로고침
-                        clearMemberFields(); // 입력 필드를 초기화
-                        resetToInitialState(); // 삭제 후 초기 상태로 돌아가기
+                        loadMembers();
+                        clearMemberFields();
+                        resetToInitialState();
                     } catch (Exception ex) {
                         ex.printStackTrace();
                         JOptionPane.showMessageDialog(null, "회원 정보를 삭제하는 중 오류가 발생했습니다.", "오류", JOptionPane.ERROR_MESSAGE);
@@ -292,6 +294,12 @@ public class MemberView extends JFrame implements MemberListener {
 
         jPanel.setLayout(new BorderLayout());
 
+        JLabel sortingHintLabel = new JLabel("각 열의 제목을 클릭하면 정렬이 가능합니다.", JLabel.CENTER);
+        Font defaultFont = sortingHintLabel.getFont();
+        sortingHintLabel.setFont(defaultFont.deriveFont(11f));
+        sortingHintLabel.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
+        jPanel.add(sortingHintLabel, BorderLayout.NORTH);
+
         JScrollPane jScrollPane = new JScrollPane();
 
         defaultTableModel = new DefaultTableModel(
@@ -301,6 +309,9 @@ public class MemberView extends JFrame implements MemberListener {
         );
         jTable = new JTable(defaultTableModel);
         jTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+
+        TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(defaultTableModel);
+        jTable.setRowSorter(sorter);
 
         jScrollPane.setViewportView(jTable);
         jScrollPane.setBorder(
@@ -326,7 +337,7 @@ public class MemberView extends JFrame implements MemberListener {
                     regButton.setText("새로 등록하기");
 
                     // 설명 패널 변경
-                    updateInstructionsPanel(false); // 항목 선택 상태에서는 false
+                    updateInstructionsPanel(false);
                 }
             }
         });
@@ -372,8 +383,8 @@ public class MemberView extends JFrame implements MemberListener {
         jPanel.add(fieldPanel);
 
         // 설명 패널 추가 및 필드에 저장
-        instructionsPanel = createInstructionsPanel(true); // 초기 상태에서는 true
-        instructionsPanel.setBounds(0, 270, 490, 170); // 적절한 위치와 크기로 설정
+        instructionsPanel = createInstructionsPanel(true);
+        instructionsPanel.setBounds(0, 270, 490, 170);
         jPanel.add(instructionsPanel);
 
         return jPanel;
@@ -391,17 +402,18 @@ public class MemberView extends JFrame implements MemberListener {
         if (isInitialMode) {
             instructionsLabel = new JLabel("<html>" +
                     "<h3>프로그램 사용 방법</h3>" +
-                    "<p><b>회원 등록:</b> 회원 정보를 입력한 후 '등록' 버튼을 클릭하여 새 회원을 등록합니다.</p>" +
-                    "<p><b>입력 형식:</b> 모든 필드는 올바른 형식으로 입력해야 합니다.</p>" +
+                    "<p>회원 등록: 회원 정보를 입력한 후 '등록' 버튼을 클릭하여 새 회원을 등록합니다.</p>" +
+                    "<p>입력 형식: 모든 필드는 올바른 형식으로 입력해야 합니다.</p>" +
                     "<p>ex) 이메일 (example@domain.com), 전화번호 (000-0000-0000 또는 000-000-0000), 생년월일 (yyyy-MM-dd).</p>" +
+                    "<p>수정 또는 삭제를 원하는 회원을 선택 후 수정/삭제를 할 수 있습니다.</p>" +
                     "</html>");
         } else {
             instructionsLabel = new JLabel("<html>" +
                     "<h3>프로그램 사용 방법</h3>" +
-                    "<p><b>새로 등록하기:</b> 등록 모드로 돌아가려면 '새로 등록하기' 버튼을 클릭하여 돌아갑니다.</p>" +
-                    "<p><b>회원 수정:</b> 회원을 선택한 후, 필요한 정보를 수정하고 '수정' 버튼을 클릭하여 변경 내용을 저장합니다.</p>" +
-                    "<p><b>회원 삭제:</b> 회원을 선택한 후 '삭제' 버튼을 클릭하여 해당 회원을 삭제합니다.</p>" +
-                    "<p><b>입력 형식:</b> 모든 필드는 올바른 형식으로 입력해야 합니다.</p>" +
+                    "<p>새로 등록하기: 등록 모드로 돌아가려면 '새로 등록하기' 버튼을 클릭하여 돌아갑니다.</p>" +
+                    "<p>회원 수정: 회원을 선택한 후, 필요한 정보를 수정하고 '수정' 버튼을 클릭하여 변경 내용을 저장합니다.</p>" +
+                    "<p>회원 삭제: 회원을 선택한 후 '삭제' 버튼을 클릭하여 해당 회원을 삭제합니다.</p>" +
+                    "<p>입력 형식: 모든 필드는 올바른 형식으로 입력해야 합니다.</p>" +
                     "<p>ex) 이메일 (example@domain.com), 전화번호 (000-0000-0000 또는 000-000-0000), 생년월일 (yyyy-MM-dd).</p>" +
                     "</html>");
         }
@@ -413,8 +425,8 @@ public class MemberView extends JFrame implements MemberListener {
     private void updateInstructionsPanel(boolean isInitialMode) {
         JPanel parentPanel = (JPanel) instructionsPanel.getParent();
         parentPanel.remove(instructionsPanel);
-        instructionsPanel = createInstructionsPanel(isInitialMode); // 새로운 설명 패널 생성
-        instructionsPanel.setBounds(0, 270, 490, 170); // 적절한 위치와 크기로 설정
+        instructionsPanel = createInstructionsPanel(isInitialMode);
+        instructionsPanel.setBounds(0, 270, 490, 170);
         parentPanel.add(instructionsPanel); // 새로운 설명 패널 추가
         revalidate();
         repaint();
@@ -425,9 +437,7 @@ public class MemberView extends JFrame implements MemberListener {
         JFrame frame = new MemberView("1906125 회원관리 프로그램");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setMinimumSize(SIZE);
-        // null주면 창이 화면 중앙에 배치됨
         frame.setLocationRelativeTo(null);
-        // 창의 크기와 레이아웃을 패킹하여 컴포넌트들이 알맞게 보이도록 설정
         frame.pack();
         frame.setVisible(true);
     }
@@ -465,10 +475,10 @@ public class MemberView extends JFrame implements MemberListener {
             Long tableMemberId = Long.parseLong(jTable.getValueAt(i, 0).toString());
             if (tableMemberId.equals(memberId)) {
                 defaultTableModel.removeRow(i);
-                break; // 삭제했으므로 루프 종료
+                break;
             }
         }
-        clearMemberFields(); // 입력 필드를 초기화
+        clearMemberFields();
     }
 
     // 초기 상태로 되돌리는 메서드
@@ -479,7 +489,7 @@ public class MemberView extends JFrame implements MemberListener {
         regButton.setText("등록");
 
         // 설명 패널 변경
-        updateInstructionsPanel(true); // 초기 상태에서는 true
+        updateInstructionsPanel(true);
     }
 
 

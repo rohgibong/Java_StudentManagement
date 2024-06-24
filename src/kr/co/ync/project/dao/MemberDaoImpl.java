@@ -11,7 +11,7 @@ import java.util.List;
 
 public class MemberDaoImpl implements MemberDao {
 
-    private static final String ALL = "SELECT * FROM tb_members";
+    private static final String ALL = "SELECT * FROM tb_members ORDER BY id DESC";
     private static final String INSERT = "INSERT INTO tb_members (email, name, phone, birth, reg_date) VALUES (?, ?, ?, ?, ?)";
     private static final String UPDATE = "UPDATE tb_members SET email = ?, name = ?, phone = ?, birth = ? WHERE id = ?";
     private static final String DELETE = "DELETE FROM tb_members WHERE id = ?";
