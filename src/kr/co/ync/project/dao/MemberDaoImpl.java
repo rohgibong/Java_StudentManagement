@@ -15,8 +15,6 @@ public class MemberDaoImpl implements MemberDao {
     private static final String INSERT = "INSERT INTO tb_members (email, name, phone, birth, reg_date) VALUES (?, ?, ?, ?, ?)";
     private static final String UPDATE = "UPDATE tb_members SET email = ?, name = ?, phone = ?, birth = ? WHERE id = ?";
     private static final String DELETE = "DELETE FROM tb_members WHERE id = ?";
-    private static final String CHECK_EMAIL = "SELECT id FROM tb_members WHERE email = ?";
-    private static final String CHECK_PHONE = "SELECT id FROM tb_members WHERE phone = ?";
 
     @Override
     public List<Member> all() throws SQLException {

@@ -19,29 +19,24 @@ import java.util.regex.Pattern;
 
 public class MemberView extends JFrame implements MemberListener {
 
-    //상수 SIZE - 창의 크기를 정의하는 상수
+    // 상수 SIZE - 창의 크기를 정의하는 상수
     public static final Dimension SIZE = new Dimension(1000, 500);
-    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,6}$", Pattern.CASE_INSENSITIVE);;
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,6}$", Pattern.CASE_INSENSITIVE);
     private static final Pattern NAME_PATTERN = Pattern.compile("^[a-zA-Z가-힣\\s]+$");
     private static final Pattern PHONE_PATTERN = Pattern.compile("^\\d{3}-\\d{3,4}-\\d{4}$");
-
 
     private final String[] labelTexts = {"이메일", "이름", "전화번호", "생년월일"};
 
     private JTextField[] fields;
-
     private JButton regButton;
-
     private JButton updateButton;
-
     private JButton deleteButton;
-
     private DefaultTableModel defaultTableModel;
-
     private JTable jTable;
+    private JPanel instructionsPanel;
+    private Long selectedMemberId;
 
-
-    //생성자 MemberView - 창의 제목을 설정
+    // 생성자 MemberView - 창의 제목을 설정
     public MemberView(String title) {
         super(title);
         JPanel jPanel = new JPanel(new GridLayout(1, 2));
@@ -60,21 +55,41 @@ public class MemberView extends JFrame implements MemberListener {
         regButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                try{
-                    if (!validateFields()) {
-                        return; // 필드 검증에 실패하면 작업 중단
-                    }
-
-                    Member member = new Member(
-                            fields[0].getText(),
-                            fields[1].getText(),
-                            fields[2].getText(),
-                            Util.strToLocalDate(fields[3].getText())
+                // 초기 상태인지 체크
+                if (updateButton.isVisible() || deleteButton.isVisible()) {
+                    resetToInitialState(); // 초기 상태로 돌아가기
+                } else {
+                    int response = JOptionPane.showConfirmDialog(
+                            null,
+                            "회원 정보를 등록하시겠습니까?",
+                            "등록 확인",
+                            JOptionPane.YES_NO_OPTION,
+                            JOptionPane.QUESTION_MESSAGE
                     );
-                    MemberController.getInstance().save(member);
-                } catch(Exception exception){
-                    exception.printStackTrace();
-                    JOptionPane.showMessageDialog(null, "회원 정보를 저장하는 중 오류가 발생했습니다.", "오류", JOptionPane.ERROR_MESSAGE);
+
+                    if (response == JOptionPane.YES_OPTION) {
+                        try {
+                            if (!validateFields()) {
+                                return; // 필드 검증에 실패하면 작업 중단
+                            }
+
+                            Member member = new Member(
+                                    fields[0].getText(),
+                                    fields[1].getText(),
+                                    fields[2].getText(),
+                                    Util.strToLocalDate(fields[3].getText())
+                            );
+                            Member savedMember = MemberController.getInstance().save(member);
+                            if (savedMember != null) {
+                                loadMembers(); // 등록 후 테이블을 새로고침
+                                clearMemberFields(); // 입력 필드를 초기화
+                                resetToInitialState(); // 초기 상태로 돌아가기
+                            }
+                        } catch (Exception exception) {
+                            exception.printStackTrace();
+                            JOptionPane.showMessageDialog(null, "회원 정보를 저장하는 중 오류가 발생했습니다.", "오류", JOptionPane.ERROR_MESSAGE);
+                        }
+                    }
                 }
             }
         });
@@ -92,39 +107,81 @@ public class MemberView extends JFrame implements MemberListener {
         updateButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                try {
-                    int row = jTable.getSelectedRow();
-                    if (row < 0) {
-                        JOptionPane.showMessageDialog(null, "수정할 회원을 선택하세요.", "경고", JOptionPane.WARNING_MESSAGE);
-                        return;
+                int response = JOptionPane.showConfirmDialog(
+                        null,
+                        "회원 정보를 수정하시겠습니까?",
+                        "수정 확인",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE
+                );
+                if (response == JOptionPane.YES_OPTION) {
+                    try {
+                        int row = jTable.getSelectedRow();
+                        if (row < 0) {
+                            JOptionPane.showMessageDialog(null, "수정할 회원을 선택하세요.", "경고", JOptionPane.WARNING_MESSAGE);
+                            return;
+                        }
+
+                        Long memberId = selectedMemberId;
+                        if (memberId == null) {
+                            JOptionPane.showMessageDialog(null, "유효한 회원을 선택하세요.", "경고", JOptionPane.WARNING_MESSAGE);
+                            return;
+                        }
+
+                        if (!validateFields()) {
+                            return; // 필드 검증에 실패하면 작업 중단
+                        }
+
+                        if (isEmailDuplicate(fields[0].getText(), memberId)) {
+                            JOptionPane.showMessageDialog(null, "이미 존재하는 이메일입니다.", "경고", JOptionPane.WARNING_MESSAGE);
+                            return;
+                        }
+
+                        if (isPhoneDuplicate(fields[2].getText(), memberId)) {
+                            JOptionPane.showMessageDialog(null, "이미 존재하는 전화번호입니다.", "경고", JOptionPane.WARNING_MESSAGE);
+                            return;
+                        }
+
+                        Member member = new Member(
+                                fields[0].getText(),
+                                fields[1].getText(),
+                                fields[2].getText(),
+                                Util.strToLocalDate(fields[3].getText())
+                        );
+
+                        member.setId(memberId);
+
+                        MemberController.getInstance().update(member);
+                        loadMembers(); // 수정 후 테이블을 새로고침
+                        clearMemberFields(); // 입력 필드를 초기화
+                        resetToInitialState(); // 수정 후 초기 상태로 돌아가기
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        JOptionPane.showMessageDialog(null, "회원 정보를 수정하는 중 오류가 발생했습니다.", "오류", JOptionPane.ERROR_MESSAGE);
                     }
-
-                    Long memberId = Long.parseLong(jTable.getValueAt(row, 0).toString());
-                    if (memberId == null) {
-                        JOptionPane.showMessageDialog(null, "유효한 회원을 선택하세요.", "경고", JOptionPane.WARNING_MESSAGE);
-                        return;
-                    }
-
-                    if (!validateFields()) {
-                        return; // 필드 검증에 실패하면 작업 중단
-                    }
-
-                    Member member = new Member(
-                            fields[0].getText(),
-                            fields[1].getText(),
-                            fields[2].getText(),
-                            Util.strToLocalDate(fields[3].getText())
-                    );
-
-                    member.setId(memberId);
-
-                    MemberController.getInstance().update(member);
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                    JOptionPane.showMessageDialog(null, "회원 정보를 수정하는 중 오류가 발생했습니다.", "오류", JOptionPane.ERROR_MESSAGE);
                 }
             }
         });
+    }
+
+    private boolean isEmailDuplicate(String email, Long memberId) {
+        for (int i = 0; i < jTable.getRowCount(); i++) {
+            Long tableMemberId = Long.parseLong(jTable.getValueAt(i, 0).toString());
+            if (!tableMemberId.equals(memberId) && jTable.getValueAt(i, 1).toString().equals(email)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isPhoneDuplicate(String phone, Long memberId) {
+        for (int i = 0; i < jTable.getRowCount(); i++) {
+            Long tableMemberId = Long.parseLong(jTable.getValueAt(i, 0).toString());
+            if (!tableMemberId.equals(memberId) && jTable.getValueAt(i, 3).toString().equals(phone)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean validateFields() {
@@ -162,7 +219,6 @@ public class MemberView extends JFrame implements MemberListener {
         return true;
     }
 
-
     private boolean isValidPhoneNumber(String phone) {
         return PHONE_PATTERN.matcher(phone).matches();
     }
@@ -180,23 +236,36 @@ public class MemberView extends JFrame implements MemberListener {
         deleteButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                try {
-                    int row = jTable.getSelectedRow();
-                    if (row < 0) {
-                        JOptionPane.showMessageDialog(null, "삭제할 회원을 선택하세요.", "경고", JOptionPane.WARNING_MESSAGE);
-                        return;
-                    }
+                int response = JOptionPane.showConfirmDialog(
+                        null,
+                        "회원 정보를 삭제하시겠습니까?",
+                        "삭제 확인",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE
+                );
 
-                    Long memberId = Long.parseLong(jTable.getValueAt(row, 0).toString());
-                    if (memberId == null) {
-                        JOptionPane.showMessageDialog(null, "유효한 회원을 선택하세요.", "경고", JOptionPane.WARNING_MESSAGE);
-                        return;
-                    }
+                if (response == JOptionPane.YES_OPTION) {
+                    try {
+                        int row = jTable.getSelectedRow();
+                        if (row < 0) {
+                            JOptionPane.showMessageDialog(null, "삭제할 회원을 선택하세요.", "경고", JOptionPane.WARNING_MESSAGE);
+                            return;
+                        }
 
-                    MemberController.getInstance().delete(memberId);
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                    JOptionPane.showMessageDialog(null, "회원 정보를 삭제하는 중 오류가 발생했습니다.", "오류", JOptionPane.ERROR_MESSAGE);
+                        Long memberId = Long.parseLong(jTable.getValueAt(row, 0).toString());
+                        if (memberId == null) {
+                            JOptionPane.showMessageDialog(null, "유효한 회원을 선택하세요.", "경고", JOptionPane.WARNING_MESSAGE);
+                            return;
+                        }
+
+                        MemberController.getInstance().delete(memberId);
+                        loadMembers(); // 삭제 후 테이블을 새로고침
+                        clearMemberFields(); // 입력 필드를 초기화
+                        resetToInitialState(); // 삭제 후 초기 상태로 돌아가기
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        JOptionPane.showMessageDialog(null, "회원 정보를 삭제하는 중 오류가 발생했습니다.", "오류", JOptionPane.ERROR_MESSAGE);
+                    }
                 }
             }
         });
@@ -205,11 +274,11 @@ public class MemberView extends JFrame implements MemberListener {
     private void loadMembers() {
         try {
             defaultTableModel.setRowCount(0);
-            for (Member member:MemberController.getInstance().allMembers()){
+            for (Member member : MemberController.getInstance().allMembers()) {
                 defaultTableModel.insertRow(0, member.toArray());
             }
         } catch (SQLException e) {
-
+            e.printStackTrace();
         }
     }
 
@@ -221,9 +290,7 @@ public class MemberView extends JFrame implements MemberListener {
                 )
         );
 
-        jPanel.setLayout(
-                new BorderLayout()
-        );
+        jPanel.setLayout(new BorderLayout());
 
         JScrollPane jScrollPane = new JScrollPane();
 
@@ -251,33 +318,37 @@ public class MemberView extends JFrame implements MemberListener {
                     fields[1].setText(jTable.getValueAt(row, 2).toString());
                     fields[2].setText(jTable.getValueAt(row, 3).toString());
                     fields[3].setText(jTable.getValueAt(row, 4).toString());
+                    selectedMemberId = Long.parseLong(jTable.getValueAt(row, 0).toString());
+
+                    // 항목을 클릭하면 수정 및 삭제 버튼을 보이게 함
+                    updateButton.setVisible(true);
+                    deleteButton.setVisible(true);
+                    regButton.setText("새로 등록하기");
+
+                    // 설명 패널 변경
+                    updateInstructionsPanel(false); // 항목 선택 상태에서는 false
                 }
             }
         });
-
-
         return jPanel;
     }
 
     private JPanel createLeftPanel() {
         fields = new JTextField[labelTexts.length];
         JPanel jPanel = new JPanel();
-        //null - 배치관리자 x
         jPanel.setLayout(null);
 
         JPanel fieldPanel = new JPanel();
         fieldPanel.setBounds(15, 5, 450, 180);
-        fieldPanel.setLayout(
-                new GridLayout(4, 2, 5, 5)
-        );
+        fieldPanel.setLayout(new GridLayout(4, 2, 5, 5));
         fieldPanel.setBorder(
                 BorderFactory.createCompoundBorder(BorderFactory.createTitledBorder("회원등록"),
-                BorderFactory.createEmptyBorder(5, 5, 5, 5)
+                        BorderFactory.createEmptyBorder(5, 5, 5, 5)
                 )
         );
 
-        //init
-        for (int i = 0; i < fields.length; i++){
+        // init
+        for (int i = 0; i < fields.length; i++) {
             fields[i] = new JTextField();
             JLabel jLabel = new JLabel(labelTexts[i], SwingConstants.LEFT);
             fieldPanel.add(jLabel);
@@ -290,28 +361,76 @@ public class MemberView extends JFrame implements MemberListener {
 
         updateButton = new JButton("수정");
         updateButton.setBounds(15, 236, 220, 40);
+        updateButton.setVisible(false); // 초기에는 숨김
         jPanel.add(updateButton);
 
         deleteButton = new JButton("삭제");
         deleteButton.setBounds(245, 236, 220, 40);
+        deleteButton.setVisible(false); // 초기에는 숨김
         jPanel.add(deleteButton);
 
         jPanel.add(fieldPanel);
+
+        // 설명 패널 추가 및 필드에 저장
+        instructionsPanel = createInstructionsPanel(true); // 초기 상태에서는 true
+        instructionsPanel.setBounds(0, 270, 490, 170); // 적절한 위치와 크기로 설정
+        jPanel.add(instructionsPanel);
+
         return jPanel;
     }
 
-    //static 메소드 createAndShowGUI - GUI를 생성하고 보여줌
-    public static void createAndShowGUI(){
+
+
+    private JPanel createInstructionsPanel(boolean isInitialMode) {
+        JPanel instructionsPanel = new JPanel();
+        instructionsPanel.setLayout(new BoxLayout(instructionsPanel, BoxLayout.Y_AXIS));
+        instructionsPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        JLabel instructionsLabel;
+
+        if (isInitialMode) {
+            instructionsLabel = new JLabel("<html>" +
+                    "<h3>프로그램 사용 방법</h3>" +
+                    "<p><b>회원 등록:</b> 회원 정보를 입력한 후 '등록' 버튼을 클릭하여 새 회원을 등록합니다.</p>" +
+                    "<p><b>입력 형식:</b> 모든 필드는 올바른 형식으로 입력해야 합니다.</p>" +
+                    "<p>ex) 이메일 (example@domain.com), 전화번호 (000-0000-0000 또는 000-000-0000), 생년월일 (yyyy-MM-dd).</p>" +
+                    "</html>");
+        } else {
+            instructionsLabel = new JLabel("<html>" +
+                    "<h3>프로그램 사용 방법</h3>" +
+                    "<p><b>새로 등록하기:</b> 등록 모드로 돌아가려면 '새로 등록하기' 버튼을 클릭하여 돌아갑니다.</p>" +
+                    "<p><b>회원 수정:</b> 회원을 선택한 후, 필요한 정보를 수정하고 '수정' 버튼을 클릭하여 변경 내용을 저장합니다.</p>" +
+                    "<p><b>회원 삭제:</b> 회원을 선택한 후 '삭제' 버튼을 클릭하여 해당 회원을 삭제합니다.</p>" +
+                    "<p><b>입력 형식:</b> 모든 필드는 올바른 형식으로 입력해야 합니다.</p>" +
+                    "<p>ex) 이메일 (example@domain.com), 전화번호 (000-0000-0000 또는 000-000-0000), 생년월일 (yyyy-MM-dd).</p>" +
+                    "</html>");
+        }
+
+        instructionsPanel.add(instructionsLabel);
+        return instructionsPanel;
+    }
+
+    private void updateInstructionsPanel(boolean isInitialMode) {
+        JPanel parentPanel = (JPanel) instructionsPanel.getParent();
+        parentPanel.remove(instructionsPanel);
+        instructionsPanel = createInstructionsPanel(isInitialMode); // 새로운 설명 패널 생성
+        instructionsPanel.setBounds(0, 270, 490, 170); // 적절한 위치와 크기로 설정
+        parentPanel.add(instructionsPanel); // 새로운 설명 패널 추가
+        revalidate();
+        repaint();
+    }
+
+    // static 메소드 createAndShowGUI - GUI를 생성하고 보여줌
+    public static void createAndShowGUI() {
         JFrame frame = new MemberView("1906125 회원관리 프로그램");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setMinimumSize(SIZE);
-        //null주면 창이 화면 중앙에 배치됨
+        // null주면 창이 화면 중앙에 배치됨
         frame.setLocationRelativeTo(null);
-        //창의 크기와 레이아웃을 패킹하여 컴포넌트들이 알맞게 보이도록 설정
+        // 창의 크기와 레이아웃을 패킹하여 컴포넌트들이 알맞게 보이도록 설정
         frame.pack();
         frame.setVisible(true);
     }
-
 
     @Override
     public void register(MemberEvent memberEvent) {
@@ -351,6 +470,18 @@ public class MemberView extends JFrame implements MemberListener {
         }
         clearMemberFields(); // 입력 필드를 초기화
     }
+
+    // 초기 상태로 되돌리는 메서드
+    private void resetToInitialState() {
+        clearMemberFields();
+        updateButton.setVisible(false);
+        deleteButton.setVisible(false);
+        regButton.setText("등록");
+
+        // 설명 패널 변경
+        updateInstructionsPanel(true); // 초기 상태에서는 true
+    }
+
 
 
 
