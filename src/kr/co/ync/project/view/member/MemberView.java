@@ -7,6 +7,9 @@ import kr.co.ync.project.model.Member;
 import kr.co.ync.project.util.Util;
 
 import javax.swing.*;
+import javax.swing.border.Border;
+import javax.swing.border.CompoundBorder;
+import javax.swing.border.TitledBorder;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
@@ -36,6 +39,7 @@ public class MemberView extends JFrame implements MemberListener {
     private JTable jTable;
     private JPanel instructionsPanel;
     private Long selectedMemberId;
+    private JPanel fieldPanel;
 
 
     // 생성자 MemberView - 창의 제목을 설정
@@ -87,6 +91,13 @@ public class MemberView extends JFrame implements MemberListener {
                                 clearMemberFields();
                                 resetToInitialState();
                             }
+
+                            JOptionPane.showMessageDialog(
+                                    null,
+                                    "회원 등록이 완료되었습니다.",
+                                    "등록 완료",
+                                    JOptionPane.INFORMATION_MESSAGE
+                            );
                         } catch (Exception exception) {
                             exception.printStackTrace();
                             JOptionPane.showMessageDialog(null, "회원 정보를 저장하는 중 오류가 발생했습니다.", "오류", JOptionPane.ERROR_MESSAGE);
@@ -157,6 +168,13 @@ public class MemberView extends JFrame implements MemberListener {
                         loadMembers();
                         clearMemberFields();
                         resetToInitialState();
+
+                        JOptionPane.showMessageDialog(
+                                null,
+                                "회원 수정이 완료되었습니다.",
+                                "수정 완료",
+                                JOptionPane.INFORMATION_MESSAGE
+                        );
                     } catch (Exception ex) {
                         ex.printStackTrace();
                         JOptionPane.showMessageDialog(null, "회원 정보를 수정하는 중 오류가 발생했습니다.", "오류", JOptionPane.ERROR_MESSAGE);
@@ -202,7 +220,7 @@ public class MemberView extends JFrame implements MemberListener {
 
         // 이름 형식 검증
         if (!isValidName(fields[1].getText())) {
-            JOptionPane.showMessageDialog(null, "이름에는 문자만 포함될 수 있습니다.", "경고", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(null, "유효한 이름을 입력하세요.", "경고", JOptionPane.WARNING_MESSAGE);
             return false;
         }
 
@@ -264,6 +282,13 @@ public class MemberView extends JFrame implements MemberListener {
                         loadMembers();
                         clearMemberFields();
                         resetToInitialState();
+
+                        JOptionPane.showMessageDialog(
+                                null,
+                                "회원 삭제가 완료되었습니다.",
+                                "삭제 완료",
+                                JOptionPane.INFORMATION_MESSAGE
+                        );
                     } catch (Exception ex) {
                         ex.printStackTrace();
                         JOptionPane.showMessageDialog(null, "회원 정보를 삭제하는 중 오류가 발생했습니다.", "오류", JOptionPane.ERROR_MESSAGE);
@@ -338,6 +363,8 @@ public class MemberView extends JFrame implements MemberListener {
 
                     // 설명 패널 변경
                     updateInstructionsPanel(false);
+
+                    updatePanelTitle("회원수정/삭제");
                 }
             }
         });
@@ -349,7 +376,7 @@ public class MemberView extends JFrame implements MemberListener {
         JPanel jPanel = new JPanel();
         jPanel.setLayout(null);
 
-        JPanel fieldPanel = new JPanel();
+        fieldPanel = new JPanel();
         fieldPanel.setBounds(15, 5, 450, 180);
         fieldPanel.setLayout(new GridLayout(4, 2, 5, 5));
         fieldPanel.setBorder(
@@ -481,6 +508,15 @@ public class MemberView extends JFrame implements MemberListener {
         clearMemberFields();
     }
 
+    private void updatePanelTitle(String title) {
+        CompoundBorder compoundBorder = (CompoundBorder)fieldPanel.getBorder();
+        Border outsideBorder = compoundBorder.getOutsideBorder();
+        TitledBorder titledBorder = (TitledBorder) outsideBorder;
+        titledBorder.setTitle(title);
+        fieldPanel.repaint();
+    }
+
+
     // 초기 상태로 되돌리는 메서드
     private void resetToInitialState() {
         clearMemberFields();
@@ -488,8 +524,9 @@ public class MemberView extends JFrame implements MemberListener {
         deleteButton.setVisible(false);
         regButton.setText("등록");
 
-        // 설명 패널 변경
         updateInstructionsPanel(true);
+
+        updatePanelTitle("회원등록");
     }
 
 
